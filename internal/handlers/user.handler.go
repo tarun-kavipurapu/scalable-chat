@@ -18,6 +18,14 @@ func NewUserHandler(store db.Store) *UserHandler {
 	return &UserHandler{store: store}
 }
 
+func (u *UserHandler) CheckUser(ctx *gin.Context, userId int64) {
+	_, err := u.store.GetUserById(ctx, userId)
+
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "User Not Found in the Database"})
+	}
+}
+
 func (u *UserHandler) Login(ctx *gin.Context) {
 	var req types.LoginUserRequest
 	err := ctx.ShouldBindJSON(&req)
@@ -46,6 +54,7 @@ func (u *UserHandler) Login(ctx *gin.Context) {
 	}
 
 	userDetails := types.UserDetails{
+		Id:       int64(user.ID),
 		Email:    user.Email,
 		Username: user.Username,
 	}

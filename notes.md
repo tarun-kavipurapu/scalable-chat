@@ -256,3 +256,129 @@ wss.on('connection', function connection(ws, request, userId) {
 
 server.listen(8080);
 ```
+
+
+
+
+- Databse persistance
+
+- Write queries to fetch Messages by taking from and to as Input 
+- if the sent client is not found then just Insert it into the Database What is the Order of the Operations That needs to be performed Should it be first updated in the DAtabse or should it be sent to the socket 
+
+- SQl queries Needed
+- to insert into Conversations Table 
+- to fetch the conversations 
+![alt text](image.png)
+
+
+
+
+
+For designing a WebSocket chat app with persistent storage, you have a few key considerations to balance. Let's break this down and discuss the best approach:
+
+1. Order of operations:
+   - Store in DB first vs. Send via WebSocket first
+
+2. Integrating Redis as a pub/sub mechanism
+
+Here's a recommended approach:
+
+
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant WebSocket Server
+    participant Redis PubSub
+    participant Database
+
+    Client->>WebSocket Server: Send message
+    WebSocket Server->>Database: Store message
+    WebSocket Server->>Redis PubSub: Publish message
+    Redis PubSub->>WebSocket Server: Broadcast to other servers
+    WebSocket Server->>Client: Send to recipient(s)
+
+```
+
+1. Order of operations:
+   It's generally better to store in the database first, then send via WebSocket. Here's why:
+
+   - Data integrity: By storing first, you ensure the message is persisted even if there's a problem with the WebSocket connection.
+   - Consistency: The database becomes the single source of truth.
+   - Message ID: You can generate a unique ID when storing, which can be useful for tracking and ordering messages.
+
+2. Integrating Redis as a pub/sub mechanism:
+   Redis pub/sub is excellent for distributing messages across multiple WebSocket servers, enabling horizontal scaling. Here's how to integrate it:
+
+   - After storing in the database, publish the message to a Redis channel.
+   - Have your WebSocket servers subscribe to this Redis channel.
+   - When a message is published, broadcast it to the appropriate connected clients.
+
+Here's a basic code structure to implement this approach:
+
+
+
+```javascript
+const WebSocket = require('ws');
+const Redis = require('ioredis');
+const { saveMessageToDB } = require('./database');
+
+const wss = new WebSocket.Server({ port: 8080 });
+const redis = new Redis();
+const pubClient = new Redis();
+
+wss.on('connection', (ws) => {
+  ws.on('message', async (message) => {
+    try {
+      // 1. Store message in database
+      const savedMessage = await saveMessageToDB(message);
+
+      // 2. Publish message to Redis
+      await pubClient.publish('chat_messages', JSON.stringify(savedMessage));
+
+      // 3. Send acknowledgement to sender
+      ws.send(JSON.stringify({ status: 'sent', id: savedMessage.id }));
+    } catch (error) {
+      console.error('Error processing message:', error);
+      ws.send(JSON.stringify({ status: 'error', message: 'Failed to process message' }));
+    }
+  });
+});
+
+// Subscribe to Redis channel
+redis.subscribe('chat_messages', (err, count) => {
+  if (err) {
+    console.error('Failed to subscribe: %s', err.message);
+  } else {
+    console.log(`Subscribed successfully! This client is currently subscribed to ${count} channels.`);
+  }
+});
+
+redis.on('message', (channel, message) => {
+  const parsedMessage = JSON.parse(message);
+  
+  // Broadcast message to all connected clients
+  wss.clients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(JSON.stringify(parsedMessage));
+    }
+  });
+});
+
+```
+
+This structure provides several benefits:
+
+1. Messages are stored in the database first, ensuring data persistence.
+2. Redis pub/sub allows for easy scaling across multiple WebSocket servers.
+3. The sender gets an acknowledgement once the message is stored and published.
+4. All connected clients receive new messages via the Redis subscription.
+
+To further improve this system, consider:
+
+1. Implementing authentication and user sessions.
+2. Adding error handling and retries for database and Redis operations.
+3. Implementing message delivery confirmations from recipients.
+4. Using a message queue for additional reliability in high-load scenarios.
+
+Would you like me to elaborate on any part of this architecture or implementation?

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"log"
+	"tarun-kavipurapu/test-go-chat/internal/handlers"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -29,15 +30,16 @@ var (
 )
 
 type Client struct {
-	conn   *websocket.Conn
-	userId string
-	hub    *Hub
-	sendTo chan *Message
+	conn        *websocket.Conn
+	userId      int64
+	hub         *Hub
+	sendTo      chan *Message
+	chatHandler handlers.ChatHandler
 }
 
 type Message struct {
-	From    string `json:"from"`
-	To      string `json:"to"`
+	From    int64  `json:"from"`
+	To      int64  `json:"to"`
 	Content string `json:"Content"`
 }
 
@@ -112,10 +114,12 @@ func (c *Client) writePump() {
 				return
 			}
 		}
+
+		//send to the ssocket listener
 	}
 }
 
-func CreateNewSocketUser(hub *Hub, connection *websocket.Conn, userID string) {
+func CreateNewSocketUser(hub *Hub, connection *websocket.Conn, userID int64) {
 
 	client := &Client{
 		hub:    hub,

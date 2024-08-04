@@ -15,6 +15,7 @@ func GenerateResponse(data interface{}, message string) *BaseHttpResponse {
 }
 
 type UserDetails struct {
+	Id       int64  `json:"user_id"`
 	Email    string `json:"user_email"`
 	Username string `json:"user_name"`
 }

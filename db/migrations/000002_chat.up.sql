@@ -10,3 +10,5 @@ CREATE TABLE
         WITH
             TIME ZONE DEFAULT CURRENT_TIMESTAMP
     );
+
+CREATE INDEX idx_message_from_to ON message (from_user_id, to_user_id);

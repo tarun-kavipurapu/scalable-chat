@@ -86,6 +86,22 @@ func CurrentUser(context *gin.Context, store db.Store) (db.User, error) {
 	}
 	return user, nil
 }
+
+func ExtractUserIdFromToken(tokenString string) (int64, error) {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+
+		return privateKey, nil
+	})
+
+	claims, _ := token.Claims.(jwt.MapClaims)
+	userId := int64(claims["user_id"].(float64))
+
+	return userId, err
+}
+
 func ExtractJWT(context *gin.Context) (*jwt.Token, error) {
 	tokenString := ExtractFromRequest(context)
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {

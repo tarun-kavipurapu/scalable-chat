@@ -3,9 +3,7 @@ package main
 import (
 	"log"
 	"os"
-	"path/filepath"
 	"strconv"
-	"strings"
 	"tarun-kavipurapu/test-go-chat/config"
 
 	"github.com/golang-migrate/migrate/v4"
@@ -17,32 +15,11 @@ func main() {
 	log.SetOutput(os.Stdout)
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
-	// Get the current working directory
-	cwd, err := os.Getwd()
-	if err != nil {
-		log.Fatal("Failed to get current working directory:", err)
-	}
+	config.LoadConfig(".")
+	dbSource := config.EnvVars.DBSource
+	log.Println(dbSource)
 
-	// Navigate up to the root directory of your project
-	rootDir := filepath.Dir(filepath.Dir(cwd))
-
-	// Load configuration from the root directory
-	cfg, err := config.LoadConfig(rootDir)
-	if err != nil {
-		log.Fatal("Failed to load configuration:", err)
-	}
-
-	dbSource := cfg.DBSource
-	log.Println("Database source:", dbSource)
-
-	migrationsDir := filepath.Join(rootDir, "db", "migrations")
-
-	// Convert backslashes to forward slashes and add file:// prefix
-	migrationSource := "file://" + strings.ReplaceAll(migrationsDir, "\\", "/")
-
-	log.Println("Migration source:", migrationSource)
-
-	m, err := migrate.New(migrationSource, dbSource)
+	m, err := migrate.New("file://db/migrations", dbSource)
 	if err != nil {
 		log.Fatal("Init error: ", err.Error())
 	}

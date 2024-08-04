@@ -1,7 +1,6 @@
 package config
 
 import (
-	"fmt"
 	"log"
 
 	"github.com/spf13/viper"
@@ -17,33 +16,38 @@ type Config struct {
 	AWS_BUCKET_NAME      string `mapstructure:"AWS_BUCKET_NAME"`
 }
 
+var EnvVars Config
+
 func LoadConfig(path string) (config Config, err error) {
 	viper.SetConfigType("env")
 
-	// Set the config file name
+	// Load app.env
+
 	viper.SetConfigName("app")
-
-	// Add the path to the config file
 	viper.AddConfigPath(path)
-
-	// Attempt to read the config file
-	if err := viper.ReadInConfig(); err != nil {
-		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
-			// Config file not found
-			return config, fmt.Errorf("config file not found in %s: %w", path, err)
-		}
-		// Config file was found but another error was produced
-		return config, fmt.Errorf("error reading config file: %w", err)
-	}
-
-	// Attempt to unmarshal the config into the struct
-	err = viper.Unmarshal(&config)
+	log.Println(path)
+	err = viper.MergeInConfig()
 	if err != nil {
-		return config, fmt.Errorf("unable to decode into struct: %w", err)
+		log.Println("Cannot read app config file:", err)
 	}
 
-	// Print the full path of the config file that was successfully loaded
-	log.Printf("Config file loaded successfully: %s", viper.ConfigFileUsed())
+	// Load keys.env
+	viper.SetConfigName("keys")
+	viper.AddConfigPath(path)
+	err = viper.MergeInConfig()
+	if err != nil {
+		log.Println("Cannot read keys config file:", err)
+	}
 
-	return config, nil
+	viper.AutomaticEnv()
+
+	EnvVars.PORT = viper.GetString("PORT")
+	EnvVars.DBSource = viper.GetString("DB_SOURCE")
+	EnvVars.DBDriver = viper.GetString("DB_DRIVER")
+	EnvVars.AWS_REGION = viper.GetString("AWS_REGION")
+	EnvVars.AWS_ACCESS_TOKEN = viper.GetString("AWS_ACCESS_TOKEN")
+	EnvVars.AWS_SECRET_TOKEN_KEY = viper.GetString("AWS_SECRET_TOKEN_KEY")
+	EnvVars.AWS_BUCKET_NAME = viper.GetString("AWS_BUCKET_NAME")
+
+	return EnvVars, nil
 }
