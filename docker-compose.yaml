@@ -2,7 +2,7 @@ version: "3.9"
 services:
   postgres:
     image: postgres:latest
-    container_name: chat-app
+    container_name: chat-app-postgres
     ports:
       - "5432:5432"
     volumes:
@@ -10,5 +10,14 @@ services:
     env_file:
       - ./app.env
 
+  redis:
+    image: redis:latest
+    container_name: chat-app-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
 volumes:
   db:
+  redis_data:

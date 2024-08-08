@@ -2,11 +2,13 @@ package internal
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"fmt"
 	"log"
-	"tarun-kavipurapu/test-go-chat/internal/handlers"
 	"time"
 
+	"github.com/go-redis/redis/v8"
 	"github.com/gorilla/websocket"
 )
 
@@ -34,7 +36,7 @@ type Client struct {
 	userId      int64
 	hub         *Hub
 	sendTo      chan *Message
-	chatHandler handlers.ChatHandler
+	redisClient *redis.Client
 }
 
 type Message struct {
@@ -119,17 +121,37 @@ func (c *Client) writePump() {
 	}
 }
 
-func CreateNewSocketUser(hub *Hub, connection *websocket.Conn, userID int64) {
+// Iam making a new Subscribtion for every new client created so that it can listene to the subscriber but need to research on if it can be optimize and a centralised Subscription can be made
+func (c *Client) SubscribeToRedis() {
+	ctx := context.Background()
+	subscribeID := fmt.Sprintf("user_%d", c.userId)
+	pubSub := c.redisClient.Subscribe(ctx, subscribeID)
+	// ch := pubSub.Channel()
+	//if i am making a room then i can just range over the channel and bradcast to all users in Room
+	ch := pubSub.Channel()
+
+	for msg := range ch {
+		message := &Message{
+			From:    c.userId, // Set the "From" field as needed
+			To:      c.userId, // Set the "To" field as needed
+			Content: msg.Payload,
+		}
+		c.hub.broadcast <- message
+	}
+}
+func CreateNewSocketUser(hub *Hub, connection *websocket.Conn, userID int64, redisClient *redis.Client) {
 
 	client := &Client{
-		hub:    hub,
-		conn:   connection,
-		userId: userID,
-		sendTo: make(chan *Message),
+		hub:         hub,
+		conn:        connection,
+		userId:      userID,
+		sendTo:      make(chan *Message),
+		redisClient: redisClient,
 	}
 
 	go client.readPump()
 	go client.writePump()
+	go client.SubscribeToRedis()
 
 	client.hub.register <- client
 }

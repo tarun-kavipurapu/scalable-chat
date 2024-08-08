@@ -2,10 +2,13 @@ package internal
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	db "tarun-kavipurapu/test-go-chat/db/sqlc"
 	"tarun-kavipurapu/test-go-chat/internal/handlers"
+
+	"github.com/go-redis/redis/v8"
 )
 
 // Hub maintains the set of active clients and broadcasts messages to the clients.
@@ -16,10 +19,11 @@ type Hub struct {
 	broadcast   chan *Message
 	chatHandler *handlers.ChatHandler
 	store       db.Store
+	redisClient *redis.Client
 }
 
 // NewHub initializes and returns a new Hub instance.
-func NewHub(chatHandler *handlers.ChatHandler, store db.Store) *Hub {
+func NewHub(chatHandler *handlers.ChatHandler, store db.Store, redisClient *redis.Client) *Hub {
 	return &Hub{
 		broadcast:   make(chan *Message),
 		register:    make(chan *Client),
@@ -27,7 +31,8 @@ func NewHub(chatHandler *handlers.ChatHandler, store db.Store) *Hub {
 		clients:     make(map[int64]*Client),
 		chatHandler: chatHandler,
 
-		store: store,
+		store:       store,
+		redisClient: redisClient,
 	}
 }
 
@@ -101,7 +106,13 @@ func (h *Hub) HandleMessageBroadcast(message *Message, ctx context.Context) {
 			log.Printf("Closed channel and removed client due to blocked sendTo: %d\n", message.To)
 		}
 	} else {
+		//thhis should be published to the sennder cclients redis channel
+		var channelName string
+		channelName = fmt.Sprintf("user_%d", message.To)
+		payload, _ := json.Marshal(message)
+		h.redisClient.Publish(ctx, channelName, payload)
+		log.Printf("Published message to Redis for user: %d\n", message.To)
 		//In this Section IT should Publish to the redis CLient of
-		log.Printf("Attempted to send message to non-existent client: %d\n", message.To)
+		// log.Printf("Attempted to send message to non-existent client: %d\n", message.To)
 	}
 }

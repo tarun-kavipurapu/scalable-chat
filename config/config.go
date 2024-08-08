@@ -14,6 +14,7 @@ type Config struct {
 	AWS_ACCESS_TOKEN     string `mapstructure:"AWS_ACCESS_TOKEN"`
 	AWS_SECRET_TOKEN_KEY string `mapstructure:"AWS_SECRET_TOKEN_KEY"`
 	AWS_BUCKET_NAME      string `mapstructure:"AWS_BUCKET_NAME"`
+	REDIS_URL            string `mapstructure:"REDIS_URL"`
 }
 
 var EnvVars Config
@@ -48,6 +49,7 @@ func LoadConfig(path string) (config Config, err error) {
 	EnvVars.AWS_ACCESS_TOKEN = viper.GetString("AWS_ACCESS_TOKEN")
 	EnvVars.AWS_SECRET_TOKEN_KEY = viper.GetString("AWS_SECRET_TOKEN_KEY")
 	EnvVars.AWS_BUCKET_NAME = viper.GetString("AWS_BUCKET_NAME")
+	EnvVars.REDIS_URL = viper.GetString("REDIS_URL")
 
 	return EnvVars, nil
 }

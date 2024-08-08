@@ -16,7 +16,7 @@ func SetupRouter(server *Server) *gin.Engine {
 
 	userHandler := handlers.NewUserHandler(server.store)
 	chatHandler := handlers.NewChatHandler(server.store)
-	hub := NewHub(chatHandler, server.store)
+	hub := NewHub(chatHandler, server.store, server.redisClient)
 	ctx := context.Background()
 	go hub.Run(ctx)
 	users := r.Group("/users")
@@ -58,7 +58,7 @@ func SetupRouter(server *Server) *gin.Engine {
 		// Upgrading the HTTP connection to a WebSocket connection
 
 		// Call the handler to create a new WebSocket user
-		CreateNewSocketUser(hub, connection, user.ID)
+		CreateNewSocketUser(hub, connection, user.ID, server.redisClient)
 	})
 
 	return r

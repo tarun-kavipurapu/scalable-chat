@@ -1,21 +1,22 @@
 package internal
 
 import (
+	"context"
 	"log"
-	"os"
-	"path/filepath"
 	"tarun-kavipurapu/test-go-chat/config"
 	"tarun-kavipurapu/test-go-chat/db/adapters"
 	db "tarun-kavipurapu/test-go-chat/db/sqlc"
 	"tarun-kavipurapu/test-go-chat/internal/middlewares"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-redis/redis/v8"
 )
 
 type Server struct {
 	store db.Store
 	// store  *db.SQLStore
-	router *gin.Engine
+	router      *gin.Engine
+	redisClient *redis.Client
 }
 
 // runs on a specific address
@@ -24,25 +25,27 @@ func (s *Server) Start(address string) error {
 }
 
 func NewHTTPServer() *Server {
+	ctx := context.Background()
 	router := gin.Default()
 
 	router.Use(middlewares.CORSMiddleware())
-	cwd, err := os.Getwd()
-	if err != nil {
-		log.Fatal("Failed to get current working directory:", err)
-	}
 
-	// Navigate up to the root directory of your project
-	rootDir := filepath.Dir(filepath.Dir(cwd))
-
-	// Load configuration from the root directory
-	cfg, err := config.LoadConfig(rootDir)
-	if err != nil {
-		log.Fatal("Failed to load configuration:", err)
-	}
-
-	dbSource := cfg.DBSource
+	dbSource := config.EnvVars.DBSource
 	pgConn := adapters.InitDb(dbSource)
+
+	// redisURL := config.EnvVars.REDIS_URL
+
+	redisClient := adapters.CreateRedisClient("redis://localhost:6379")
+	pong, err := redisClient.Ping(ctx).Result()
+	if err != nil {
+		log.Fatal("Failed to connect to Redis:", err)
+	} else {
+		log.Println("Successfully connected to Redis:", pong)
+	}
+	err = redisClient.Set(ctx, "mykey", "Hello from Redis!", 0).Err()
+	if err != nil {
+		log.Fatal("Failed to set key in Redis:", err)
+	}
 
 	// if pgConn != nil {
 	// 	log.Fatal("Connected to database")
@@ -54,8 +57,9 @@ func NewHTTPServer() *Server {
 
 	server := &Server{
 
-		router: router,
-		store:  store,
+		router:      router,
+		store:       store,
+		redisClient: redisClient,
 	}
 
 	log.Println("Setting up server...")
