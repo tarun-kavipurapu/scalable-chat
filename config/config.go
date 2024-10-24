@@ -23,7 +23,7 @@ func LoadConfig(path string) (config Config, err error) {
 
 	// Load app.env
 
-	viper.SetConfigName("app")
+	viper.SetConfigName("app.example")
 	viper.AddConfigPath(path)
 	log.Println(path)
 	err = viper.MergeInConfig()

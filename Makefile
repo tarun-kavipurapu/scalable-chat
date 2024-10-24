@@ -9,5 +9,3 @@ migrateup:
 migratedown:
 	go run cmd/migration/init.sql.go down
 
-filestructure:
-	go run /cmd/filestructure/main.g

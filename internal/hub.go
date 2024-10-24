@@ -67,16 +67,13 @@ func (h *Hub) HandleUserDisconnectEvent(client *Client) {
 
 // HandleMessageBroadcast handles the message broadcasting.
 func (h *Hub) HandleMessageBroadcast(message *Message, ctx context.Context) {
-	//before uploading to databse if the User with from and to UserId Exists
-	// h.store.GetUserById(message.ID)
-	//first upload the message to the database
 
-	//in future try to send the error to client wither through a websocket message or http JSOn response
 	_, err := h.store.GetUserById(ctx, int64(message.From))
 	if err != nil {
 		log.Println("From userId is not available in Database Please Register")
 		return
 	}
+	senderClient := h.clients[int64(message.From)]
 	_, err = h.store.GetUserById(ctx, int64(message.To))
 	if err != nil {
 		log.Println("To userId is not available in Database Please Register")
@@ -85,7 +82,7 @@ func (h *Hub) HandleMessageBroadcast(message *Message, ctx context.Context) {
 	//Insert into the Databsae
 	err = h.chatHandler.InsertMessage(ctx, message.From, message.To, message.Content)
 	if err != nil {
-		log.Println("Unable to Insert Messaages In the Database")
+		senderClient.SendError("Unable to Insert Messaages In the Database")
 		return
 
 	}

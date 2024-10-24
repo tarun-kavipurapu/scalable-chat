@@ -3,8 +3,8 @@ package internal
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"log"
-	"tarun-kavipurapu/test-go-chat/internal/handlers"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -30,17 +30,29 @@ var (
 )
 
 type Client struct {
-	conn        *websocket.Conn
-	userId      int64
-	hub         *Hub
-	sendTo      chan *Message
-	chatHandler handlers.ChatHandler
+	conn   *websocket.Conn
+	userId int64
+	hub    *Hub
+	sendTo chan *Message
 }
 
 type Message struct {
 	From    int64  `json:"from"`
 	To      int64  `json:"to"`
 	Content string `json:"Content"`
+}
+
+func (c *Client) SendError(errorMsg string) {
+
+	c.sendTo <- &Message{
+		From:    0, //from server
+		To:      c.userId,
+		Content: fmt.Sprintf(`{"error": true, "message": "%s"}`, errorMsg),
+	}
+	// Add a sleep time to allow the channel to be emptied
+	time.Sleep(2 * time.Second)
+	c.conn.Close()
+
 }
 
 func (c *Client) readPump() {
@@ -65,6 +77,11 @@ func (c *Client) readPump() {
 
 		log.Println(msg)
 
+		//Here Client.Id comes from the token and msg.from comes from the payload both of them should be same so that we can say we are sending the message by a credible user
+		if c.userId != msg.From {
+			c.SendError("Unauthorized !! Auth user and Sent User are Different")
+			return
+		}
 		c.hub.broadcast <- &msg
 	}
 }

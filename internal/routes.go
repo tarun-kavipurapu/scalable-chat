@@ -26,20 +26,15 @@ func SetupRouter(server *Server) *gin.Engine {
 		users.POST("/signup", userHandler.Signup)
 
 	}
-	r.GET("/ws/:token", func(c *gin.Context) {
+	r.GET("/ws", func(c *gin.Context) {
 		var upgrader = websocket.Upgrader{
 			ReadBufferSize:  1024,
 			WriteBufferSize: 1024,
 			CheckOrigin:     func(r *http.Request) bool { return true },
 		}
 
-		connection, err := upgrader.Upgrade(c.Writer, c.Request, nil)
-		if err != nil {
-			log.Println(err)
-			return
-		}
 		// Reading userID from request parameter
-		token := c.Param("token")
+		token := c.Query("token")
 
 		userId, err := utils.ExtractUserIdFromToken(token)
 		if err != nil {
@@ -49,14 +44,22 @@ func SetupRouter(server *Server) *gin.Engine {
 
 		log.Println("userID,", userId)
 
-		user, err := server.store.GetUserById(c, userId)
+		user, err := server.store.GetUserById(c, int64(userId))
+		// log.Println(err.Error(), user)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Unknown User "})
+
+			log.Println(err.Error())
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+
+			return
+		}
+		connection, err := upgrader.Upgrade(c.Writer, c.Request, nil)
+		if err != nil {
+			log.Println(err)
 			return
 		}
 
 		// Upgrading the HTTP connection to a WebSocket connection
-
 		// Call the handler to create a new WebSocket user
 		CreateNewSocketUser(hub, connection, user.ID)
 	})
